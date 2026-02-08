@@ -16,10 +16,25 @@ def get_clash_royale_data():
     clan_tag_encoded = CLAN_TAG.replace("#", "%23")
     url = f"https://api.clashroyale.com/v1/clans/{clan_tag_encoded}"
     
-    response = requests.get(url, headers=headers)
-    if response.status_code == 200:
-        return response.json()
-    return None
+    try:
+        response = requests.get(url, headers=headers, timeout=5)
+        if response.status_code == 200:
+            return response.json()
+        elif response.status_code == 403:
+            error_data = response.json()
+            reason = error_data.get('reason', 'Unknown')
+            message = error_data.get('message', 'Access Denied')
+            print(f"⚠️  403 Error: {reason}")
+            print(f"📝 {message}")
+            print("💡 Додай IP в білий список на https://developer.clashroyale.com/")
+            return None
+        else:
+            print(f"⚠️  API Error: {response.status_code}")
+            print(f"📝 {response.text}")
+            return None
+    except Exception as e:
+        print(f"❌ Помилка з'єднання: {e}")
+        return None
 
 def get_inactive_members(days=2):
     """Повертає список неактивних учасників"""
