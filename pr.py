@@ -50,109 +50,62 @@ def get_inactive_members(days=2):
     inactive_members.sort(key=lambda x: x['days_inactive'], reverse=True)
     return inactive_members, data['members']
 
-def send_to_telegram(text):
-    """Надсилає повідомлення в Telegram"""
-    if TG_CHAT_ID == "YOUR_CHAT_ID":
-        print("⚠️  Помилка: TG_CHAT_ID не встановлено!")
-        print("💡 Напиши боту @userinfobot щоб отримати свій Chat ID")
-        return False
+async def inactive(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Команда /inactive - показує неактивних учасників"""
+    await update.message.reply_text("⏳ Завантажую дані...")
     
-    url = f"https://api.telegram.org/bot{TG_BOT_TOKEN}/sendMessage"
-    data = {
-        "chat_id": TG_CHAT_ID,
-        "text": text,
-        "parse_mode": "HTML"
-    }
+    inactive_members, total_members = get_inactive_members()
     
-    try:
-        response = requests.post(url, json=data, timeout=5)
-        if response.status_code == 200:
-            return True
-        else:
-            print(f"❌ Помилка Telegram: {response.status_code}")
-            return False
-    except Exception as e:
-        print(f"❌ Помилка з'єднання: {e}")
-        return False
+    if inactive_members is None:
+        await update.message.reply_text("❌ Помилка при отриманні даних з API")
+        return
+    
+    if not inactive_members:
+        await update.message.reply_text("✅ Немає учасників, неактивних більше 2 днів")
+        return
+    
+    message = "📋 <b>Неактивні учасники (більше 2 днів):</b>\n\n"
+    for member in inactive_members[:15]:
+        message += f"👤 <b>{member['name']}</b> {member['tag']}\n   ⏰ {member['days_inactive']} днів\n\n"
+    
+    if len(inactive_members) > 15:
+        message += f"... та ще {len(inactive_members)-15} учасників\n\n"
+    
+    message += f"📊 Всього: {total_members}\n🚫 Неактивних: {len(inactive_members)}"
+    await update.message.reply_text(message, parse_mode="HTML")
 
-def show_menu():
-    """Меню команд"""
-    print("\n" + "="*55)
-    print("📱 Clash Royale Clan Manager")
-    print("="*55)
-    print("1. 📋 Показати неактивних учасників (>2 днів)")
-    print("2. 📊 Показати статистику клану")
-    print("3. 💬 Надіслати в Telegram")
-    print("4. 🚪 Вихід")
-    print("="*55)
+async def stats(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Команда /stats - статистика клану"""
+    await update.message.reply_text("⏳ Завантажую дані...")
+    
+    data = get_clash_royale_data()
+    if not data:
+        await update.message.reply_text("❌ Помилка при отриманні даних з API")
+        return
+    
+    message = "<b>📊 Статистика клану:</b>\n\n"
+    message += f"🏆 <b>Назва:</b> {data.get('name', 'N/A')}\n"
+    message += f"📍 <b>Тег:</b> {data.get('tag', 'N/A')}\n"
+    message += f"👥 <b>Учасників:</b> {data.get('members', 0)}/50\n"
+    message += f"⭐ <b>Трофеї:</b> {data.get('clanScore', 0):,}\n"
+    message += f"📈 <b>Опис:</b> {data.get('description', 'Немає опису')}\n"
+    
+    await update.message.reply_text(message, parse_mode="HTML")
 
 def main():
-    while True:
-        show_menu()
-        choice = input("\n▶️  Виберіть команду (1-4): ").strip()
-        
-        if choice == "1":
-            print("\n⏳ Завантажую дані...")
-            inactive_members, total_members = get_inactive_members()
-            
-            if inactive_members is None:
-                print("❌ Помилка при отриманні даних з API")
-                continue
-            
-            if not inactive_members:
-                print("✅ Немає учасників, неактивних більше 2 днів")
-                continue
-            
-            print(f"\n📋 Неактивні учасники (більше 2 днів):\n")
-            for i, member in enumerate(inactive_members, 1):
-                print(f"{i}. 👤 {member['name']} {member['tag']} - ⏰ {member['days_inactive']} днів")
-            
-            print(f"\n📊 Всього учасників: {total_members}")
-            print(f"🚫 Неактивних: {len(inactive_members)}")
-        
-        elif choice == "2":
-            print("\n⏳ Завантажую дані...")
-            data = get_clash_royale_data()
-            
-            if not data:
-                print("❌ Помилка при отриманні даних з API")
-                continue
-            
-            print(f"\n📊 Статистика клану:")
-            print(f"🏆 Назва: {data.get('name', 'N/A')}")
-            print(f"📍 Тег: {data.get('tag', 'N/A')}")
-            print(f"👥 Учасників: {data.get('members', 0)}/50")
-            print(f"⭐ Трофеї: {data.get('clanScore', 0):,}")
-            print(f"📈 Опис: {data.get('description', 'Немає опису')}")
-        
-        elif choice == "3":
-            print("\n⏳ Завантажую дані...")
-            inactive_members, total_members = get_inactive_members()
-            
-            if not inactive_members:
-                print("✅ Немає неактивних учасників")
-                continue
-            
-            message = "📋 <b>Неактивні учасники (більше 2 днів):</b>\n\n"
-            for member in inactive_members[:20]:
-                message += f"👤 <b>{member['name']}</b> {member['tag']}\n⏰ {member['days_inactive']} днів\n\n"
-            
-            if len(inactive_members) > 20:
-                message += f"... та ще {len(inactive_members)-20} учасників\n\n"
-            
-            message += f"📊 <b>Всього:</b> {total_members}\n🚫 <b>Неактивних:</b> {len(inactive_members)}"
-            
-            if send_to_telegram(message):
-                print("✅ Повідомлення надіслано в Telegram!")
-            else:
-                print("❌ Помилка при надсиланні")
-        
-        elif choice == "4":
-            print("\n👋 До побачення!")
-            break
-        
-        else:
-            print("❌ Неправильний вибір! Введіть 1-4")
+    """Запуск бота"""
+    app = Application.builder().token(TG_BOT_TOKEN).build()
+    
+    #app.add_handler(CommandHandler("start", start))
+    app.add_handler(CommandHandler("inactive", inactive))
+    app.add_handler(CommandHandler("stats", stats))
+    #app.add_handler(CommandHandler("help", help_command))
+    
+    print("🤖 Бот запущено!")
+    print("💡 Якщо виникне помилка timeout - потрібен VPN")
+    print("⏹️  Натисніть Ctrl+C щоб зупинити")
+    
+    app.run_polling()
 
 if __name__ == '__main__':
     main()
